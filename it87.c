@@ -101,6 +101,7 @@ static struct platform_device *it87_pdev[2];
 
 static inline void __superio_enter(int ioreg)
 {
+	pr_info("superio_enter 0x%02x\n", ioreg);
 	outb(0x87, ioreg);
 	outb(0x01, ioreg);
 	outb(0x55, ioreg);
@@ -150,6 +151,7 @@ static inline int superio_enter(int ioreg, bool noentry)
 static inline void superio_exit(int ioreg, bool noexit)
 {
 	if (!noexit) {
+		pr_info("superio_exit 0x%02x\n", ioreg);
 		outb(0x02, ioreg);
 		outb(0x02, ioreg + 1);
 	}
@@ -3134,6 +3136,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 	chip_type = superio_inw(sioaddr, DEVID);
 	/* Check for a valid chip before forcing chip id */
 	if (chip_type == 0xffff) {
+		pr_info("chip_type 0xffff, enter conf, sioaddr: 0x%02x\n", sioaddr);
 		/* Enter configuration mode */
 		__superio_enter(sioaddr);
 		enabled = true;
@@ -3141,6 +3144,7 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 		chip_type = superio_inw(sioaddr, DEVID);
 		if (chip_type == 0xffff)
 			goto exit;
+		pr_info("chip_type 0x%04x\n", chip_type);
 	}
 
 	if (force_id_cnt == 1) {
@@ -3742,10 +3746,15 @@ static int __init it87_find(int sioaddr, unsigned short *address,
 			reg = superio_inb(sioaddr, IT87_SIO_GPIO4_REG);
 		else
 			reg = superio_inb(sioaddr, IT87_SIO_GPIO5_REG);
-		if (reg & BIT(1))
+		pr_info("gpio reg value 0x%x\n", reg);
+		if (reg & BIT(1)) {
+			pr_info("skip pwm 2, reg value 0x%x\n", reg);
 			sio_data->skip_pwm |= BIT(1);
-		if (reg & BIT(2))
+		}
+		if (reg & BIT(2)) {
+			pr_info("skip fan 2, reg value 0x%x\n", reg);
 			sio_data->skip_fan |= BIT(1);
+		}
 
 		if ((sio_data->type == it8718 || sio_data->type == it8720) &&
 		    !(sio_data->skip_vid))
@@ -4019,6 +4028,7 @@ static void it87_init_device(struct platform_device *pdev)
 
 	data->fan_main_ctrl = data->read(data, IT87_REG_FAN_MAIN_CTRL);
 	data->has_fan = (data->fan_main_ctrl >> 4) & 0x07;
+	pr_info("init_device fan_main_ctrl 0x%x has_fan 0x%x\n", data->fan_main_ctrl, data->has_fan);
 
 	it87_check_tachometers_16bit_mode(pdev);
 
@@ -4052,6 +4062,7 @@ static void it87_init_device(struct platform_device *pdev)
 
 	/* Fan input pins may be used for alternative functions */
 	data->has_fan &= ~sio_data->skip_fan;
+	pr_info("sio_data->skip_fan 0x%x has_fan 0x%x\n", sio_data->skip_fan, data->has_fan);
 
 	/* Check if pwm6 is enabled */
 	if (has_six_pwm(data)) {
